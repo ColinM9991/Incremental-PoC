@@ -50,7 +50,7 @@ jobs:
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
 
   package-full:
-    name: 4. Package (full)
+    name: Package (full)
     needs: [version, draft]
     runs-on: ubuntu-latest
     permissions:

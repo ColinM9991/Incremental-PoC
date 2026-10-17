@@ -1,0 +1,95 @@
+name: Package
+description: >
+  Writes the installed-version file into the aircraft, builds a 7z package and
+  uploads it to the draft release. Builds a full package unless a file list is
+  given.
+
+inputs:
+  type:
+    description: "full or incremental, used in the file name"
+    required: true
+  version:
+    description: "Version being released, e.g. 2.2.52"
+    required: true
+  baseline:
+    description: "Baseline version, e.g. 2.2.0"
+    required: true
+  tag:
+    description: "Tag of the draft release to upload to"
+    required: true
+  aircraft-dir:
+    description: "Aircraft folder in the repo"
+    required: true
+  version-file-name:
+    description: "Name of the installed-version file written into the aircraft"
+    required: true
+  package-prefix:
+    description: "Start of the package file name"
+    required: true
+  files:
+    description: "JSON array of files to include, relative to the aircraft folder. Leave empty for a full package."
+    required: false
+    default: ""
+  github-token:
+    description: "Token that can upload to the draft release"
+    required: true
+
+outputs:
+  name:
+    description: "Package file name"
+    value: ${{ steps.pack.outputs.name }}
+  sha256:
+    description: "SHA-256 of the package"
+    value: ${{ steps.pack.outputs.sha256 }}
+  size:
+    description: "Size of the package in bytes"
+    value: ${{ steps.pack.outputs.size }}
+
+runs:
+  using: composite
+  steps:
+    - name: Write installed version file
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BASELINE: ${{ inputs.baseline }}
+        AIRCRAFT_DIR: ${{ inputs.aircraft-dir }}
+        VERSION_FILE_NAME: ${{ inputs.version-file-name }}
+      run: |
+        jq -n --arg version "$VERSION" --arg baseline "$BASELINE" \
+          '{version: $version, baseline: $baseline}' > "$AIRCRAFT_DIR/$VERSION_FILE_NAME"
+
+    - name: Build package
+      id: pack
+      shell: bash
+      env:
+        TYPE: ${{ inputs.type }}
+        VERSION: ${{ inputs.version }}
+        AIRCRAFT_DIR: ${{ inputs.aircraft-dir }}
+        VERSION_FILE_NAME: ${{ inputs.version-file-name }}
+        PACKAGE_PREFIX: ${{ inputs.package-prefix }}
+        FILES: ${{ inputs.files }}
+      run: |
+        name="$PACKAGE_PREFIX-$VERSION-$TYPE.7z"
+        out="$RUNNER_TEMP/$name"
+        if [[ -z "$FILES" ]]; then
+          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=7 "$out" .)
+        else
+          list="$RUNNER_TEMP/$TYPE-files.txt"
+          { jq -r '.[]' <<< "$FILES"; echo "$VERSION_FILE_NAME"; } | sort -u > "$list"
+          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=7 "$out" "@$list")
+        fi
+        {
+          echo "name=$name"
+          echo "path=$out"
+          echo "sha256=$(sha256sum "$out" | cut -d' ' -f1)"
+          echo "size=$(stat -c %s "$out")"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Upload to draft release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        TAG: ${{ inputs.tag }}
+        PACKAGE: ${{ steps.pack.outputs.path }}
+      run: gh release upload "$TAG" "$PACKAGE" --repo "$GITHUB_REPOSITORY"
