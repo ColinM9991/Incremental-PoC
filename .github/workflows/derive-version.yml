@@ -52,14 +52,14 @@ jobs:
           filter: tree:0
           sparse-checkout: |
             VERSION
-            scripts
+            build/scripts
           sparse-checkout-cone-mode: false
 
       - name: Derive version
         id: derive
         env:
           RELEASE_TYPE: ${{ inputs.release-type }}
-        run: bash scripts/derive-version.sh "$RELEASE_TYPE"
+        run: bash build/scripts/derive-version.sh "$RELEASE_TYPE"
 
       - name: Summary
         run: |

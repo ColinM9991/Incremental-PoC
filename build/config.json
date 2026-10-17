@@ -1,0 +1,22 @@
+{
+    "compressionLevel": 5,
+    "ignoredItems": {
+        "files": [
+            "notes_k7q.txt",
+            "cache_x92.dat",
+            "debug_m4w.log",
+            "prefs_ZT3.cfg",
+            "scratch_p81.csv"
+        ],
+        "directories": [
+            "_AC3D-master-files",
+            "GSE",
+            "liveries"
+        ],
+        "extensions": [
+            ".tmp",
+            ".bak",
+            ".zq"
+        ]
+    }
+}

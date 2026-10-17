@@ -11,6 +11,10 @@ on:
         description: "Aircraft folder inside the repo"
         type: string
         required: true
+      config:
+        description: "Path to the config file that lists files to ignore"
+        type: string
+        required: true
     outputs:
       changed:
         description: "JSON array of added or edited files"
@@ -41,14 +45,17 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
-          sparse-checkout: scripts
+          sparse-checkout: |
+            build/scripts
+            build/config.json
+          sparse-checkout-cone-mode: false
 
       - name: Detect changes
         id: changes
         env:
           BASE_REF: ${{ inputs.base-ref }}
           AIRCRAFT_PATH: ${{ inputs.path }}
-        run: bash scripts/detect-changes.sh "$BASE_REF" HEAD "$AIRCRAFT_PATH" "$RUNNER_TEMP/changes"
+        run: bash build/scripts/detect-changes.sh "$BASE_REF" HEAD "$AIRCRAFT_PATH" "$RUNNER_TEMP/changes" build/config.json
 
       - name: Summary
         env:

@@ -5,13 +5,14 @@
 # whichever X.Y.z the user has installed. A file added in 2.2.3 and removed in
 # 2.2.5 lands in the delete list, so someone on 2.2.3 gets it cleaned up.
 #
-# Usage: detect-changes.sh <base-ref> <head-ref> <path> <output-dir>
+# Usage: detect-changes.sh <base-ref> <head-ref> <path> <output-dir> <config-file>
 set -euo pipefail
 
 base="${1:?base ref required}"
 head="${2:?head ref required}"
 path="${3:?path required}"
 out_dir="${4:?output dir required}"
+config_file="${5:?config file required}"
 
 fail() { echo "::error::$*" >&2; exit 1; }
 
@@ -26,8 +27,22 @@ trap 'rm -f "$touched" "$present"' EXIT
 # --no-renames lists a rename as the old path and the new path, so the old one
 # ends up in the delete list. --diff-merges=first-parent picks up anything that
 # only changed while resolving a merge.
+
+[[ -f "$config_file" ]] || fail "Config file '$config_file' not found"
+EXCLUDE=()
+while IFS= read -r spec; do
+  EXCLUDE+=("$spec")
+done < <(
+  jq -r '
+    (.ignoredItems // {}) as $i
+    | ( ($i.directories // [])[] | sub("/\\*$"; "") | ":(exclude,glob)**/\(.)/**" ),
+      ( ($i.files       // [])[] | ":(exclude,glob)**/\(.)" ),
+      ( ($i.extensions  // [])[] | ":(exclude,glob)**/*\(.)" )
+  ' "$config_file"
+)
+
 git -c core.quotepath=off log --format= --name-only --no-renames \
-  --diff-merges=first-parent "${base}..${head}" -- "$path" \
+  --diff-merges=first-parent "${base}..${head}" -- "$path" ${EXCLUDE[@]+"${EXCLUDE[@]}"} \
   | sed '/^$/d' | LC_ALL=C sort -u > "$touched"
 
 git -c core.quotepath=off ls-tree -r --name-only "$head" -- "$path" \
