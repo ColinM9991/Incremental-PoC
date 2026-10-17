@@ -31,7 +31,6 @@ jobs:
     with:
       base-ref: ${{ needs.version.outputs.baseline-tag }}
       path: src
-      config: build/config.json
 
   draft:
     name: Draft release

@@ -77,12 +77,19 @@ runs:
         out="$RUNNER_TEMP/$name"
         compression_level=$(jq -r '.compressionLevel // 5' "${{ inputs.config }}")
         
+        mapfile -t excludes < <(jq -r '
+          (.ignoredItems // {}) as $i
+          | (($i.directories // [])[] | sub("/\\*$"; "") | "-xr!\(.)"),
+            (($i.files       // [])[] | "-xr!\(.)"),
+            (($i.extensions  // [])[] | "-xr!*\(.)")
+        ' "${{ inputs.config }}")
+
         if [[ -z "$FILES" ]]; then
-          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=$compression_level "$out" .)
+          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=$compression_level "${excludes[@]}" "$out" .)
         else
           list="$RUNNER_TEMP/$TYPE-files.txt"
           { jq -r '.[]' <<< "$FILES"; echo "$VERSION_FILE_NAME"; } | sort -u > "$list"
-          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=$compression_level "$out" "@$list")
+          (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=$compression_level "${excludes[@]}" "$out" "@$list")
         fi
         {
           echo "name=$name"
