@@ -1,4 +1,0 @@
-BEFORE START
-  Battery ........ ON
-  Fuel pumps ..... ON
-  Mixture ........ RICH

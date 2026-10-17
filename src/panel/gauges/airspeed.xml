@@ -1,4 +1,5 @@
 <gauge name="airspeed">
-  <update rate="18"/>
+  <update rate="30"/>
   <element id="needle"/>
+  <element id="vne_marker"/>
 </gauge>
