@@ -11,10 +11,6 @@ on:
         description: "Aircraft folder inside the repo"
         type: string
         required: true
-      config:
-        description: "Path to the config file that lists files to ignore"
-        type: string
-        required: true
     outputs:
       changed:
         description: "JSON array of added or edited files"
