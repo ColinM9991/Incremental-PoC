@@ -59,4 +59,4 @@ jobs:
           DELETED: ${{ steps.changes.outputs.deleted-count }}
           BASE_REF: ${{ inputs.base-ref }}
         run: |
-          echo "### Changes since $BASE_REF: $CHANGED to ship, $DELETED to delete" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Changes since $BASE_REF: $CHANGED changed files(s) (this includes ignored files), $DELETED to delete" >> "$GITHUB_STEP_SUMMARY"
