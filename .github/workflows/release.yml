@@ -24,7 +24,7 @@ jobs:
       release-type: ${{ inputs.release-type }}
 
   changes:
-    name: Changes
+    name: Detect incremental changes
     needs: version
     if: needs.version.outputs.needs-incremental == 'true'
     uses: ./.github/workflows/detect-changes.yml

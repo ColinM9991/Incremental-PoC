@@ -75,7 +75,6 @@ tag=v${version}
 baseline=${baseline}
 baseline-tag=v${baseline}
 baseline-exists=${baseline_exists}
-is-baseline=${is_baseline}
 is-prerelease=${is_prerelease}
 needs-incremental=${needs_incremental}"
 

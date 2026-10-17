@@ -22,9 +22,6 @@ on:
       baseline-exists:
         description: "true when the baseline tag has already been released"
         value: ${{ jobs.derive.outputs.baseline-exists }}
-      is-baseline:
-        description: "true when this release is the X.Y.0 full install"
-        value: ${{ jobs.derive.outputs.is-baseline }}
       is-prerelease:
         description: "true for tester builds"
         value: ${{ jobs.derive.outputs.is-prerelease }}
@@ -45,7 +42,6 @@ jobs:
       baseline: ${{ steps.derive.outputs.baseline }}
       baseline-tag: ${{ steps.derive.outputs.baseline-tag }}
       baseline-exists: ${{ steps.derive.outputs.baseline-exists }}
-      is-baseline: ${{ steps.derive.outputs.is-baseline }}
       is-prerelease: ${{ steps.derive.outputs.is-prerelease }}
       needs-incremental: ${{ steps.derive.outputs.needs-incremental }}
     steps:
@@ -73,7 +69,6 @@ jobs:
             echo "|---|---|"
             echo "| Tag | \`${{ steps.derive.outputs.tag }}\` |"
             echo "| Baseline | \`${{ steps.derive.outputs.baseline-tag }}\` |"
-            echo "| Full install only | ${{ steps.derive.outputs.is-baseline }} |"
             echo "| Tester build | ${{ steps.derive.outputs.is-prerelease }} |"
             echo "| Incremental package | ${{ steps.derive.outputs.needs-incremental }} |"
           } >> "$GITHUB_STEP_SUMMARY"
