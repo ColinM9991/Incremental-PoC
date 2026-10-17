@@ -30,7 +30,7 @@ jobs:
     uses: ./.github/workflows/detect-changes.yml
     with:
       base-ref: ${{ needs.version.outputs.baseline-tag }}
-      path: LevelUp
+      path: src
 
   draft:
     name: Draft release
