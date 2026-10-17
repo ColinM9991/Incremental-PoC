@@ -10,8 +10,8 @@ version_file="${2:-VERSION}"
 fail() { echo "::error::$*" >&2; exit 1; }
 
 case "$release_type" in
-  public|tester) ;;
-  *) fail "Release type must be 'public' or 'tester', got '$release_type'" ;;
+  public|tester|candidate) ;;
+  *) fail "Release type must be 'public', 'tester', or 'candidate', got '$release_type'" ;;
 esac
 
 [[ -f "$version_file" ]] || fail "$version_file not found"
