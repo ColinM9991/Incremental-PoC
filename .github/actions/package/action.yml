@@ -33,7 +33,7 @@ inputs:
   github-token:
     description: "Token that can upload to the draft release"
     required: true
-  config-file:
+  config:
     description: "Path to the config file that lists the compression level"
     required: true
 
@@ -75,7 +75,7 @@ runs:
       run: |
         name="$PACKAGE_PREFIX-$VERSION-$TYPE.7z"
         out="$RUNNER_TEMP/$name"
-        compression_level=$(jq -r '.compressionLevel // 5' "${{ inputs.config-file }}")
+        compression_level=$(jq -r '.compressionLevel // 5' "${{ inputs.config }}")
         
         if [[ -z "$FILES" ]]; then
           (cd "$AIRCRAFT_DIR" && 7z a -t7z -mx=$compression_level "$out" .)

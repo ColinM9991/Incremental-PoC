@@ -76,6 +76,7 @@ jobs:
           version-file-name: ${{ env.VERSION_FILE_NAME }}
           package-prefix: ${{ env.PACKAGE_PREFIX }}
           github-token: ${{ github.token }}
+          config: build/config.json
 
   package-incremental:
     name: Package (incremental)
@@ -105,6 +106,7 @@ jobs:
           version-file-name: ${{ env.VERSION_FILE_NAME }}
           package-prefix: ${{ env.PACKAGE_PREFIX }}
           github-token: ${{ github.token }}
+          config: build/config.json
 
   publish:
     name: Publish
