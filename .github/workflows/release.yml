@@ -1,0 +1,167 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Public release, or a tester build"
+        type: choice
+        options: [public, tester]
+        default: public
+
+env:
+  AIRCRAFT_DIR: src
+  VERSION_FILE_NAME: version.json
+  PACKAGE_PREFIX: Test
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Version
+    uses: ./.github/workflows/derive-version.yml
+    with:
+      release-type: ${{ inputs.release-type }}
+
+  changes:
+    name: Changes
+    needs: version
+    if: needs.version.outputs.needs-incremental == 'true'
+    uses: ./.github/workflows/detect-changes.yml
+    with:
+      base-ref: ${{ needs.version.outputs.baseline-tag }}
+      path: LevelUp
+
+  draft:
+    name: Draft release
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          PRERELEASE: ${{ needs.version.outputs.is-prerelease }}
+        run: |
+          flags=(--draft --target "$GITHUB_SHA" --title "$TAG" --notes "")
+          [[ "$PRERELEASE" == true ]] && flags+=(--prerelease)
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+
+  package-full:
+    name: 4. Package (full)
+    needs: [version, draft]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      name: ${{ steps.pack.outputs.name }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      size: ${{ steps.pack.outputs.size }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package
+        id: pack
+        uses: ./.github/actions/package
+        with:
+          type: full
+          version: ${{ needs.version.outputs.version }}
+          baseline: ${{ needs.version.outputs.baseline }}
+          tag: ${{ needs.version.outputs.tag }}
+          aircraft-dir: ${{ env.AIRCRAFT_DIR }}
+          version-file-name: ${{ env.VERSION_FILE_NAME }}
+          package-prefix: ${{ env.PACKAGE_PREFIX }}
+          github-token: ${{ github.token }}
+
+  package-incremental:
+    name: Package (incremental)
+    needs: [version, changes, draft]
+    if: needs.version.outputs.needs-incremental == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      name: ${{ steps.pack.outputs.name }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      size: ${{ steps.pack.outputs.size }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package
+        id: pack
+        uses: ./.github/actions/package
+        with:
+          type: incremental
+          files: ${{ needs.changes.outputs.changed }}
+          version: ${{ needs.version.outputs.version }}
+          baseline: ${{ needs.version.outputs.baseline }}
+          tag: ${{ needs.version.outputs.tag }}
+          aircraft-dir: ${{ env.AIRCRAFT_DIR }}
+          version-file-name: ${{ env.VERSION_FILE_NAME }}
+          package-prefix: ${{ env.PACKAGE_PREFIX }}
+          github-token: ${{ github.token }}
+
+  publish:
+    name: Publish
+    needs: [version, changes, package-full, package-incremental]
+    if: >-
+      !cancelled() &&
+      needs.package-full.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.package-incremental.result)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Write manifest
+        if: needs.version.outputs.is-prerelease == 'false'
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          BASELINE: ${{ needs.version.outputs.baseline }}
+          MIRROR_REPO: ${{ github.repository_owner }}/${{ vars.MIRROR_REPO_NAME }}
+          FULL_NAME: ${{ needs.package-full.outputs.name }}
+          FULL_SHA: ${{ needs.package-full.outputs.sha256 }}
+          FULL_SIZE: ${{ needs.package-full.outputs.size }}
+          INC_NAME: ${{ needs.package-incremental.outputs.name }}
+          INC_SHA: ${{ needs.package-incremental.outputs.sha256 }}
+          INC_SIZE: ${{ needs.package-incremental.outputs.size }}
+          DELETED: ${{ needs.changes.outputs.deleted || '[]' }}
+        run: |
+          base="https://github.com/$MIRROR_REPO/releases/download/$TAG"
+          jq -n \
+            --arg version "$VERSION" --arg baseline "$BASELINE" \
+            --arg base "$base" --arg notes "https://github.com/$MIRROR_REPO/releases/tag/$TAG" \
+            --arg fullName "$FULL_NAME" --arg fullSha "$FULL_SHA" --arg fullSize "$FULL_SIZE" \
+            --arg incName "$INC_NAME" --arg incSha "$INC_SHA" --arg incSize "$INC_SIZE" \
+            --argjson delete "$DELETED" \
+            '{
+              version: $version,
+              baseline: $baseline,
+              full: { url: "\($base)/\($fullName)", sha256: $fullSha, size: ($fullSize | tonumber) },
+              incremental: (if $incName == "" then null else
+                { url: "\($base)/\($incName)", sha256: $incSha, size: ($incSize | tonumber) } end),
+              delete: $delete,
+              notesUrl: $notes
+            }' > manifest.json
+          cat manifest.json
+
+      - name: Upload manifest
+        if: needs.version.outputs.is-prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: gh release upload "$TAG" manifest.json --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          PRERELEASE: ${{ needs.version.outputs.is-prerelease }}
+        run: |
+          latest=true
+          [[ "$PRERELEASE" == true ]] && latest=false
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"

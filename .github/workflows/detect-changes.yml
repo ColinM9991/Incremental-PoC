@@ -1,0 +1,59 @@
+name: Detect changes
+
+on:
+  workflow_call:
+    inputs:
+      base-ref:
+        description: "Ref to compare from, normally the baseline tag (e.g. v2.2.0)"
+        type: string
+        required: true
+      path:
+        description: "Aircraft folder inside the repo"
+        type: string
+        required: true
+    outputs:
+      changed:
+        description: "JSON array of added or edited files"
+        value: ${{ jobs.detect.outputs.changed }}
+      deleted:
+        description: "JSON array of files to delete"
+        value: ${{ jobs.detect.outputs.deleted }}
+      changed-count:
+        value: ${{ jobs.detect.outputs.changed-count }}
+      deleted-count:
+        value: ${{ jobs.detect.outputs.deleted-count }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
+      deleted: ${{ steps.changes.outputs.deleted }}
+      changed-count: ${{ steps.changes.outputs.changed-count }}
+      deleted-count: ${{ steps.changes.outputs.deleted-count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: scripts
+
+      - name: Detect changes
+        id: changes
+        env:
+          BASE_REF: ${{ inputs.base-ref }}
+          AIRCRAFT_PATH: ${{ inputs.path }}
+        run: bash scripts/detect-changes.sh "$BASE_REF" HEAD "$AIRCRAFT_PATH" "$RUNNER_TEMP/changes"
+
+      - name: Summary
+        env:
+          CHANGED: ${{ steps.changes.outputs.changed-count }}
+          DELETED: ${{ steps.changes.outputs.deleted-count }}
+          BASE_REF: ${{ inputs.base-ref }}
+        run: |
+          echo "### Changes since $BASE_REF: $CHANGED to ship, $DELETED to delete" >> "$GITHUB_STEP_SUMMARY"
