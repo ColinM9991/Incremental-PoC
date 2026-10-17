@@ -165,3 +165,32 @@ jobs:
           latest=true
           [[ "$PRERELEASE" == true ]] && latest=false
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"
+
+  mirror:
+    name: Mirror release to public repository
+    needs: [version, publish]
+    if: needs.version.outputs.is-prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get mirror token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.MIRROR_APP_ID }}
+          private-key: ${{ secrets.MIRROR_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ vars.MIRROR_REPO_NAME }}
+ 
+      - name: Download release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release"
+ 
+      - name: Publish to mirror
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          MIRROR_REPO: ${{ github.repository_owner }}/${{ vars.MIRROR_REPO_NAME }}
+        run: |
+          gh release create "$TAG" "$RUNNER_TEMP"/release/* --repo "$MIRROR_REPO" --title "$TAG" --notes "" --latest
