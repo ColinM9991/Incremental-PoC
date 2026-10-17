@@ -51,11 +51,12 @@ fi
 version="${major}.${minor}.${patch}"
 is_prerelease=false
 
-# Tester builds become X.Y.<next patch>-dev.N, counting up from existing dev tags.
-if [[ "$release_type" == tester ]]; then
-  last_dev="$(git tag --list "v${version}-dev.*" \
-    | sed -nE "s/^v${major}\.${minor}\.${patch}-dev\.([0-9]+)$/\1/p" | sort -n | tail -n 1)"
-  version="${version}-dev.$(( ${last_dev:-0} + 1 ))"
+# Non-public builds become X.Y.<next patch>-<release_type>.N, counting up from existing tags.
+if [[ "$release_type" != public ]]; then
+  release_type_tag=$([[ "$release_type" == candidate ]] && echo "rc" || echo "dev")
+  last_dev="$(git tag --list "v${version}-${release_type_tag}.*" \
+    | sed -nE "s/^v${major}\.${minor}\.${patch}-${release_type_tag}\.([0-9]+)$/\1/p" | sort -n | tail -n 1)"
+  version="${version}-${release_type_tag}.$(( ${last_dev:-0} + 1 ))"
   is_prerelease=true
 fi
 
@@ -66,7 +67,7 @@ git rev-parse -q --verify "refs/tags/v${baseline}" > /dev/null && baseline_exist
 is_baseline=false
 [[ "$version" == "$baseline" ]] && is_baseline=true
 
-# Only public patch releases get an incremental. X.Y.0 is a full install and tester builds are full packages only.
+# Only public patch releases get an incremental.
 needs_incremental=false
 [[ "$is_prerelease" == false && "$is_baseline" == false ]] && needs_incremental=true
 

@@ -5,7 +5,7 @@ on:
       release-type:
         description: "Public release, or a tester build"
         type: choice
-        options: [public, tester]
+        options: [public, candidate, tester]
         default: public
 
 env:
