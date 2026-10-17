@@ -1,0 +1,4 @@
+<gauge name="airspeed">
+  <update rate="18"/>
+  <element id="needle"/>
+</gauge>

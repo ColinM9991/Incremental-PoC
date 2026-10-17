@@ -1,0 +1,5 @@
+{
+  "electrical": { "battery_volts": 24, "alternators": 2 },
+  "fuel": { "tanks": ["left_main", "right_main"], "capacity_gal": 120 },
+  "hydraulics": null
+}
